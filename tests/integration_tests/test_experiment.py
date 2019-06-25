@@ -19,6 +19,7 @@ import shutil
 
 import pytest
 import yaml
+import ipdb
 
 from ludwig.data.concatenate_datasets import concatenate_df
 from ludwig.experiment import experiment
@@ -442,6 +443,23 @@ def test_experiment_timeseries(csv_filename):
         input_features[0]['encoder'] = encoder
         run_experiment(input_features, output_features, data_csv=rel_path)
 
+def test_cnnrnn_with_fc_layers(csv_filename):
+    cnnrnn_with_fc_layers_dict = {
+        'encoder': 'cnnrnn',
+        'fc_layers': [
+            { 
+                'fc_size': 64
+            },
+            {   
+                'fc_size': 64
+            }
+        ]
+    }
+    input_features = [timeseries_feature()]
+    output_features = [binary_feature()]
+    input_features[0].update(cnnrnn_with_fc_layers_dict)
+    rel_path = generate_data(input_features, output_features, csv_filename)
+    run_experiment(input_features, output_features, data_csv=rel_path)
 
 def test_visual_question_answering(csv_filename):
     image_dest_folder = os.path.join(os.getcwd(), 'generated_images')

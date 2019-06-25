@@ -1077,7 +1077,7 @@ class StackedParallelCNN:
         # The following logic handles the case where the user either provides
         # both or neither.
         if fc_layers is None and num_fc_layers is None:
-            # use default layers with varying filter sizes
+            # use default layers with varying sizes
             fc_layers = [
                 {'fc_size': 512},
                 {'fc_size': 256}
@@ -1447,6 +1447,9 @@ class CNNRNN:
             initializer=None,
             regularize=True,
             reduce_output='last',
+            fc_layers=None,
+            num_fc_layers=None,
+            fc_size=256,
             **kwargs
     ):
         """
@@ -1530,13 +1533,35 @@ class CNNRNN:
                    a regularization loss.
             :type regularize:
             :param reduce_output: defines how to reduce the output tensor of
-                   the convolutional layers along the `s` sequence length
+                   the recurrent layers along the `s` sequence length
                    dimention if the rank of the tensor is greater than 2.
                    Available values are: `sum`, `mean` or `avg`, `max`, `concat`
                    (concatenates along the first dimension), `last` (returns
                    the last vector of the first dimension) and `None` or `null`
                    (which does not reduce and returns the full tensor).
             :type reduce_output: str
+            :param fc_layers: it is a list of dictionaries containing
+                   the parameters of all the fully connected layers. The length
+                   of the list determines the number of stacked fully connected
+                   layers and the content of each dictionary determines
+                   the parameters for a specific layer. The available parameters
+                   for each layer are: `fc_size`, `norm`, `activation` and
+                   `regularize`. If any of those values is missing from
+                   the dictionary, the default one specified as a parameter of
+                   the encoder will be used instead. If both `fc_layers` and
+                   `num_fc_layers` are `None`, a default list will be assigned
+                   to `fc_layers` with the value
+                   `[{fc_size: 512}, {fc_size: 256}]`.
+                   (only applies if `reduce_output` is not `None`).
+            :type fc_layers: List
+            :param num_fc_layers: if `fc_layers` is `None`, this is the number
+                   of stacked fully connected layers (only applies if
+                   `reduce_output` is not `None`).
+            :type num_fc_layers: Integer
+            :param fc_size: if a `fc_size` is not already specified in
+                   `fc_layers` this is the default `fc_size` that will be used
+                   for each layer. It indicates the size of the output
+                   of a fully connected layer.
         """
         if conv_layers is not None and num_conv_layers is None:
             # use custom-defined layers
@@ -1594,6 +1619,29 @@ class CNNRNN:
             regularize=regularize,
             reduce_output=reduce_output
         )
+
+        # If the user want to use fc_layers after the recurrent stack, it is 
+        # expected to provide fc_layers or num_fc_layers
+        # The following logic handles the case where the user either provides
+        # both or neither.
+        if fc_layers is not None or num_fc_layers is not None:
+            self.fc_stack = FCStack(
+                layers=fc_layers,
+                num_layers=num_fc_layers,
+                default_fc_size=fc_size,
+                default_activation=activation,
+                default_norm=norm,
+                default_dropout=dropout,
+                default_regularize=regularize,
+                default_initializer=initializer
+            )
+        elif fc_layers is not None and num_fc_layers is not None:
+            raise ValueError(
+                'Invalid layer parametrization, use either fc_layers or '
+                'num_fc_layers only. Not both.'
+            )
+        else:
+            self.fc_stack = None
 
     def __call__(
             self,
@@ -1653,5 +1701,23 @@ class CNNRNN:
             dropout_rate=dropout_rate,
             is_training=is_training
         )
+
+        if self.fc_stack is not None:
+            # ======== Flatten Sequence Output ==========
+            if(len(hidden.shape) > 2):
+                hidden = reduce_sequence(hidden, 'concat')
+
+            # ================ FC Layers ================
+            hidden_size = hidden.shape.as_list()[-1]
+            logger.debug('  flatten hidden: {0}'.format(hidden))
+
+            hidden = self.fc_stack(
+                hidden,
+                hidden_size,
+                regularizer=regularizer,
+                dropout_rate=dropout_rate,
+                is_training=is_training
+            )
+            hidden_size = hidden.shape.as_list()[-1]
 
         return hidden, hidden_size
