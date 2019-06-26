@@ -1611,19 +1611,22 @@ class CNNRNN:
             default_regularize=regularize
         )
 
-        self.resnet = ResNet(
-            res_layers=res_layers,
-            resnet_size=None,
-            bottleneck=False,
-            num_filters=None,
-            kernel_size=None,
-            conv_stride=None,
-            first_pool_size=None,
-            first_pool_stride=None,
-            block_sizes=None,
-            block_strides=None,
-            reduce_dims_to_array=False
-        )
+        if(res_layers):
+            self.resnet = ResNet(
+                res_layers=res_layers,
+                resnet_size=None,
+                bottleneck=False,
+                num_filters=None,
+                kernel_size=None,
+                conv_stride=None,
+                first_pool_size=None,
+                first_pool_stride=None,
+                block_sizes=None,
+                block_strides=None,
+                reduce_dims_to_array=False
+            )
+        else:
+            self.resnet = None
 
         self.recurrent_stack = RecurrentStack(
             state_size=state_size,
@@ -1710,17 +1713,18 @@ class CNNRNN:
         logger.debug('  hidden: {0}'.format(hidden))
 
         # ================ ResNet =============
-        hidden = self.resnet(
-            hidden,
-            regularizer=regularizer,
-            dropout_rate=dropout_rate,
-            is_training=is_training
-        )
+        if(self.resnet):
+            hidden = self.resnet(
+                hidden,
+                regularizer=regularizer,
+                dropout_rate=dropout_rate,
+                is_training=is_training
+            )
 
+        # ================ RNN ================
         if(len(hidden.shape) > 3):
             hidden = tf.reduce_mean(hidden, axis=[2])
 
-        # ================ RNN ================
         hidden, hidden_size = self.recurrent_stack(
             hidden,
             regularizer=regularizer,
