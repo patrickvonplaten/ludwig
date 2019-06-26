@@ -19,7 +19,7 @@ import logging
 import tensorflow as tf
 
 from ludwig.models.modules.convolutional_modules import ConvStack1D, \
-    StackParallelConv1D, ParallelConv1D
+    StackParallelConv1D, ParallelConv1D, ConvStack2D, ResNet
 from ludwig.models.modules.embedding_modules import EmbedSequence
 from ludwig.models.modules.fully_connected_modules import FCStack
 from ludwig.models.modules.recurrent_modules import RecurrentStack
@@ -1433,6 +1433,7 @@ class CNNRNN:
             pretrained_embeddings=None,
             embeddings_on_cpu=False,
             conv_layers=None,
+            res_layers=None,
             num_conv_layers=None,
             filter_size=5,
             num_filters=256,
@@ -1585,7 +1586,7 @@ class CNNRNN:
             )
 
         self.should_embed = should_embed
-
+    
         self.embed_sequence = EmbedSequence(
             vocab,
             embedding_size,
@@ -1598,7 +1599,7 @@ class CNNRNN:
             regularize=regularize
         )
 
-        self.conv_stack_1d = ConvStack1D(
+        self.conv_stack_2d = ConvStack2D(
             layers=self.conv_layers,
             default_filter_size=filter_size,
             default_num_filters=num_filters,
@@ -1608,6 +1609,20 @@ class CNNRNN:
             default_dropout=dropout,
             default_initializer=initializer,
             default_regularize=regularize
+        )
+
+        self.resnet = ResNet(
+            res_layers=res_layers,
+            resnet_size=None,
+            bottleneck=False,
+            num_filters=None,
+            kernel_size=None,
+            conv_stride=None,
+            first_pool_size=None,
+            first_pool_stride=None,
+            block_sizes=None,
+            block_strides=None,
+            reduce_dims_to_array=False
         )
 
         self.recurrent_stack = RecurrentStack(
@@ -1685,14 +1700,25 @@ class CNNRNN:
         logger.debug('  hidden: {0}'.format(hidden))
 
         # ================ CNN ================
-        hidden = self.conv_stack_1d(
+        hidden = self.conv_stack_2d(
             hidden,
-            self.embedding_size,
             regularizer=regularizer,
             dropout_rate=dropout_rate,
             is_training=is_training
         )
+
         logger.debug('  hidden: {0}'.format(hidden))
+
+        # ================ ResNet =============
+        hidden = self.resnet(
+            hidden,
+            regularizer=regularizer,
+            dropout_rate=dropout_rate,
+            is_training=is_training
+        )
+
+        if(len(hidden.shape) > 3):
+            hidden = tf.reduce_mean(hidden, axis=[2])
 
         # ================ RNN ================
         hidden, hidden_size = self.recurrent_stack(

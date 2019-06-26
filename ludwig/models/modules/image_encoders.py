@@ -135,6 +135,7 @@ class ResNetEncoder:
             batch_norm_momentum,
             batch_norm_epsilon
         )
+
         self.fc_stack = FCStack(
             layers=fc_layers,
             num_layers=num_fc_layers,

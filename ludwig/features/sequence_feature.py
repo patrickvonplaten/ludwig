@@ -122,7 +122,6 @@ class SequenceInputFeature(SequenceBaseFeature, InputFeature):
         self.length = 0
 
         encoder_parameters = self.overwrite_defaults(feature)
-
         self.encoder_obj = self.get_sequence_encoder(encoder_parameters)
 
     def get_sequence_encoder(self, encoder_parameters):

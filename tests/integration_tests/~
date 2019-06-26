@@ -19,6 +19,7 @@ import shutil
 
 import pytest
 import yaml
+import ipdb
 
 from ludwig.data.concatenate_datasets import concatenate_df
 from ludwig.experiment import experiment
@@ -265,61 +266,12 @@ def test_experiment_image_inputs(csv_filename):
 def test_experiment_audio_inputs(csv_filename):
     # Audio Inputs
     audio_dest_folder = os.path.join(os.getcwd(), 'generated_audio')
-    cnnrnn_with_fc_layers_dict = {
-        'encoder': 'cnnrnn',
-        'preprocessing': {
-            'audio_feature': { 
-                'type': 'stft',
-                'window_length_in_s': 0.02,
-                'window_shift_in_s': 0.01
-            },
-            'audio_file_length_limit_in_s': 1.0
-        },
-        'conv_layers': [
-            {
-                'num_filters': 16,
-                'filter_size': (3,7),
-                'stride': (1,1),
-                'pool_size': (1,1),
-                'pool_stride': (1,1)
-            }
-        ],
-        'res_layers': [
-            {
-                'num_filters': 32,
-                'num_blocks': 1,
-                'kernel_size': (3,5), 
-                'stride': (2,2)
-            },
-            {
-                'num_filters': 64,
-                'num_blocks': 1,
-                'num_blocks': 2,
-                'kernel_size': (3,5), 
-                'stride': (2,2)
-            },
-            {
-                'num_filters': 128,
-                'num_blocks': 1,
-                'num_blocks': 2,
-                'kernel_size': (3,5), 
-                'stride': (2,2)
-            }
-        ],
-        'fc_layers': [
-            { 
-                'fc_size': 64
-            },
-        ]
-    }
 
     input_features = [
         audio_feature(
             folder=audio_dest_folder
         )
     ]
-    input_features[0].update(cnnrnn_with_fc_layers_dict)
-
     output_features = [
         binary_feature()
     ]
@@ -493,11 +445,43 @@ def test_experiment_timeseries(csv_filename):
 def test_cnnrnn_with_fc_layers(csv_filename):
     cnnrnn_with_fc_layers_dict = {
         'encoder': 'cnnrnn',
+        'res_layers': [
+            {
+                'num_layers': 1,
+                'kernel_size': (3,7), 
+                'stride': (1,1),
+                'num_kernels': 16
+
+            },
+            {
+                'num_layers': 1,
+                'kernel_size': (3,5), 
+                'stride': (2,4)
+                'num_kernels': 32
+            },
+            {
+                'num_layers': 1,
+                'kernel_size': (3,5), 
+                'stride': (2,4)
+                'num_kernels': 64
+            },
+            {
+                'num_layers': 1,
+                'kernel_size': (3,5), 
+                'stride': (2,4),
+                'num_kernels': 64
+            },
+            {
+                'num_layers': 1,
+                'kernel_size': (3,5), 
+                'stride': (2,4)
+            }
+        ],
         'fc_layers': [
             { 
                 'fc_size': 64
             },
-            { 
+            {   
                 'fc_size': 64
             }
         ]

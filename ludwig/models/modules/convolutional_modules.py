@@ -53,7 +53,7 @@ def conv_2d(inputs, weights, biases,
             activation='relu', norm=None,
             dropout=False, dropout_rate=None,
             is_training=True):
-    hidden = tf.nn.conv2d(inputs, weights, strides=[1, stride, stride, 1],
+    hidden = tf.nn.conv2d(inputs, weights, strides=[1, stride[0], stride[1], 1],
                           padding=padding) + biases
 
     if norm is not None:
@@ -517,15 +517,15 @@ class ConvStack2D:
             if 'num_filters' not in layer:
                 layer['num_filters'] = default_num_filters
             if 'filter_size' not in layer:
-                layer['filter_size'] = default_filter_size
+                layer['filter_size'] = (default_filter_size, default_filter_size)
             if 'pool_size' not in layer:
-                layer['pool_size'] = default_pool_size
+                layer['pool_size'] = (default_pool_size, default_pool_size)
             if 'activation' not in layer:
                 layer['activation'] = default_activation
             if 'stride' not in layer:
-                layer['stride'] = default_stride
+                layer['stride'] = (default_stride, default_stride)
             if 'pool_stride' not in layer:
-                layer['pool_stride'] = default_pool_stride
+                layer['pool_stride'] = (default_pool_stride, default_pool_stride)
             if 'norm' not in layer:
                 layer['norm'] = default_norm
             if 'dropout' not in layer:
@@ -544,14 +544,18 @@ class ConvStack2D:
     ):
         num_layers = len(self.layers)
         hidden = input_image
-        prev_num_filters = int(input_image.shape[-1])
+        if(len(input_image.shape) < 4):
+            hidden = tf.expand_dims(hidden, -1)
+
+        prev_num_filters = int(hidden.shape[-1])
+
         for i in range(num_layers):
             layer = self.layers[i]
             with tf.variable_scope('conv_{}'.format(i)):
                 # Convolution Layer
                 filter_shape = [
-                    layer['filter_size'],
-                    layer['filter_size'],
+                    layer['filter_size'][0],
+                    layer['filter_size'][1],
                     prev_num_filters,
                     layer['num_filters']
                 ]
@@ -573,12 +577,12 @@ class ConvStack2D:
                 # Pooling
                 if layer['pool_size'] is not None:
                     pool_size = layer['pool_size']
-                    pool_kernel_size = [1, pool_size, pool_size, 1]
+                    pool_kernel_size = [1, pool_size[0], pool_size[1], 1]
                     pool_stride = layer['pool_stride']
                     if pool_stride is not None:
-                        pool_kernel_stride = [1, pool_size, pool_size, 1]
+                        pool_kernel_stride = [1, pool_size[0], pool_size[1], 1]
                     else:
-                        pool_kernel_stride = [1, pool_stride, pool_stride, 1]
+                        pool_kernel_stride = [1, pool_stride[0], pool_stride[1], 1]
                     layer_output = tf.nn.max_pool(
                         layer_output,
                         ksize=pool_kernel_size,
@@ -631,11 +635,12 @@ def fixed_padding(inputs, kernel_size):
       A tensor with the same format as the input with the data either intact
       (if kernel_size == 1) or padded (if kernel_size > 1).
     """
-    pad_total = kernel_size - 1
-    pad_beg = pad_total // 2
-    pad_end = pad_total - pad_beg
-    padded_inputs = tf.pad(inputs, [[0, 0], [pad_beg, pad_end],
-                                    [pad_beg, pad_end], [0, 0]])
+    #TODO: function adapted to tuple stride input
+    pad_total = [ kernel_size_dim - 1 for kernel_size_dim in kernel_size ]
+    pad_beg = [ pad_total_dim // 2 for pad_total_dim in pad_total ] 
+    pad_end = [ pad_total_dim - pad_beg_dim for pad_total_dim, pad_beg_dim in zip(pad_total, pad_beg) ]
+    padded_inputs = tf.pad(inputs, [[0, 0], [pad_beg[0], pad_end[0]],
+                                    [pad_beg[1], pad_end[1]], [0, 0]])
     return padded_inputs
 
 
@@ -644,13 +649,15 @@ def conv2d_fixed_padding(inputs, filters, kernel_size, strides,
     """Strided 2-D convolution with explicit padding."""
     # The padding is consistent and is based only on `kernel_size`, not on the
     # dimensions of `inputs` (as opposed to using `tf.layers.conv2d` alone).
-    if strides > 1:
+    #TODO: function adapted to tuple stride input
+    is_unity_stride = strides[0] * strides[1] == 1
+    if not is_unity_stride:
         inputs = fixed_padding(inputs, kernel_size)
 
     return tf.layers.conv2d(
         inputs=inputs, filters=filters, kernel_size=kernel_size,
         strides=strides,
-        padding=('SAME' if strides == 1 else 'VALID'), use_bias=False,
+        padding=('SAME' if is_unity_stride else 'VALID'), use_bias=False,
         kernel_initializer=tf.variance_scaling_initializer(),
         kernel_regularizer=regularizer)
 
@@ -694,9 +701,7 @@ def get_resnet_block_sizes(resnet_size):
 ################################################################################
 # ResNet block definitions.
 ################################################################################
-def resnet_block(inputs, filters, is_training, projection_shortcut, strides,
-                 regularizer=None, batch_norm_momentum=0.9,
-                 batch_norm_epsilon=0.001):
+def resnet_block(inputs, filters, is_training, projection_shortcut, strides, kernel_size=3, regularizer=None, batch_norm_momentum=0.9, batch_norm_epsilon=0.001):
     """A single block for ResNet v2, without a bottleneck.
     Batch normalization then ReLu then convolution as described by:
       Identity Mappings in Deep Residual Networks
@@ -727,7 +732,8 @@ def resnet_block(inputs, filters, is_training, projection_shortcut, strides,
         shortcut = projection_shortcut(inputs)
 
     inputs = conv2d_fixed_padding(
-        inputs=inputs, filters=filters, kernel_size=3, strides=strides,
+        inputs=inputs, filters=filters, kernel_size=kernel_size, 
+        strides=strides,
         regularizer=regularizer)
 
     inputs = resnet_batch_norm(inputs, is_training,
@@ -735,7 +741,7 @@ def resnet_block(inputs, filters, is_training, projection_shortcut, strides,
                                batch_norm_epsilon=batch_norm_epsilon)
     inputs = tf.nn.relu(inputs)
     inputs = conv2d_fixed_padding(
-        inputs=inputs, filters=filters, kernel_size=3, strides=1,
+        inputs=inputs, filters=filters, kernel_size=kernel_size, strides=(1,1),
         regularizer=regularizer)
 
     return inputs + shortcut
@@ -804,7 +810,7 @@ def resnet_bottleneck_block(inputs, filters, is_training, projection_shortcut,
 
 
 def resnet_block_layer(inputs, filters, bottleneck, block_fn, blocks, strides,
-                       is_training, name, regularizer=None,
+                       is_training, name, kernel_size=3, regularizer=None,
                        batch_norm_momentum=0.9, batch_norm_epsilon=0.001):
     """Creates one layer of blocks for the ResNet model.
     Args:
@@ -829,17 +835,19 @@ def resnet_block_layer(inputs, filters, bottleneck, block_fn, blocks, strides,
 
     def projection_shortcut(inputs):
         return conv2d_fixed_padding(
-            inputs=inputs, filters=filters_out, kernel_size=1, strides=strides,
+            inputs=inputs, filters=filters_out, kernel_size=(1,1), strides=strides,
             regularizer=regularizer)
 
     # Only the first block per block_layer uses projection_shortcut and strides
     inputs = block_fn(inputs, filters, is_training, projection_shortcut,
-                      strides, regularizer=regularizer,
+                      strides, kernel_size=kernel_size, 
+                      regularizer=regularizer,
                       batch_norm_momentum=batch_norm_momentum,
                       batch_norm_epsilon=batch_norm_epsilon)
 
     for _ in range(1, blocks):
-        inputs = block_fn(inputs, filters, is_training, None, 1,
+        inputs = block_fn(inputs, filters, is_training, None, 
+                          (1,1), kernel_size=kernel_size,
                           regularizer=regularizer,
                           batch_norm_momentum=batch_norm_momentum,
                           batch_norm_epsilon=batch_norm_epsilon)
@@ -850,10 +858,10 @@ def resnet_block_layer(inputs, filters, bottleneck, block_fn, blocks, strides,
 class ResNet(object):
     """Base class for building the Resnet Model."""
 
-    def __init__(self, resnet_size, bottleneck, num_filters,
+    def __init__(self, res_layers, resnet_size, bottleneck, num_filters,
                  kernel_size, conv_stride, first_pool_size, first_pool_stride,
                  block_sizes, block_strides, batch_norm_momentum=0.9,
-                 batch_norm_epsilon=0.001):
+                 batch_norm_epsilon=0.001, reduce_dims_to_array=True):
         """Creates a model obtaining an image representation.
 
         Implements ResNet v2:
@@ -899,6 +907,8 @@ class ResNet(object):
         self.pre_activation = True
         self.batch_norm_momentum = batch_norm_momentum
         self.batch_norm_epsilon = batch_norm_epsilon
+        self.res_layers = res_layers
+        self.reduce_dims_to_array = reduce_dims_to_array
 
     def __call__(
             self,
@@ -918,30 +928,51 @@ class ResNet(object):
         inputs = input_image
 
         with tf.variable_scope('resnet'):
-            inputs = conv2d_fixed_padding(
-                inputs=inputs, filters=self.num_filters,
-                kernel_size=self.kernel_size,
-                strides=self.conv_stride, regularizer=regularizer)
-            inputs = tf.identity(inputs, 'initial_conv')
+            if(self.res_layers):
+                for i, res_layer in enumerate(self.res_layers):
+                    num_filters = res_layer['num_filters']
+                    num_blocks = res_layer['num_blocks']
+                    strides = res_layer['stride']
+                    kernel_size = res_layer['kernel_size']
+                    inputs = resnet_block_layer(
+                        inputs=inputs, 
+                        filters=num_filters,
+                        bottleneck=self.bottleneck,
+                        block_fn = self.block_fn, 
+                        blocks=num_blocks,
+                        strides=strides, 
+                        is_training=is_training,
+                        name='block_layer{}'.format(i + 1),
+                        kernel_size=kernel_size,
+                        regularizer=regularizer,
+                        batch_norm_momentum=self.batch_norm_momentum,
+                        batch_norm_epsilon=self.batch_norm_epsilon
+                    )
+            else:
+                inputs = conv2d_fixed_padding(
+                    inputs=inputs, filters=self.num_filters,
+                    kernel_size=self.kernel_size,
+                    strides=self.conv_stride, regularizer=regularizer)
+                inputs = tf.identity(inputs, 'initial_conv')
 
-            if self.first_pool_size:
-                inputs = tf.layers.max_pooling2d(
-                    inputs=inputs, pool_size=self.first_pool_size,
-                    strides=self.first_pool_stride, padding='SAME')
-                inputs = tf.identity(inputs, 'initial_max_pool')
+                if self.first_pool_size:
+                    inputs = tf.layers.max_pooling2d(
+                        inputs=inputs, pool_size=self.first_pool_size,
+                        strides=self.first_pool_stride, padding='SAME')
+                    inputs = tf.identity(inputs, 'initial_max_pool')
 
-            for i, num_blocks in enumerate(self.block_sizes):
-                num_filters = self.num_filters * (2 ** i)
-                inputs = resnet_block_layer(
-                    inputs=inputs, filters=num_filters,
-                    bottleneck=self.bottleneck,
-                    block_fn=self.block_fn, blocks=num_blocks,
-                    strides=self.block_strides[i], is_training=is_training,
-                    name='block_layer{}'.format(i + 1),
-                    regularizer=regularizer,
-                    batch_norm_momentum=self.batch_norm_momentum,
-                    batch_norm_epsilon=self.batch_norm_epsilon
-                )
+                for i, num_blocks in enumerate(self.block_sizes):
+                    num_filters = self.num_filters * (2 ** i)
+                    inputs = resnet_block_layer(
+                        inputs=inputs, filters=num_filters,
+                        bottleneck=self.bottleneck,
+                        block_fn=self.block_fn, blocks=num_blocks,
+                        strides=self.block_strides[i], is_training=is_training,
+                        name='block_layer{}'.format(i + 1),
+                        regularizer=regularizer,
+                        batch_norm_momentum=self.batch_norm_momentum,
+                        batch_norm_epsilon=self.batch_norm_epsilon
+                    )
 
             # Only apply the BN and ReLU for model that does pre_activation in each
             # building/bottleneck block, eg resnet V2.
@@ -957,9 +988,11 @@ class ResNet(object):
             # ResNet does an Average Pooling layer over pool_size,
             # but that is the same as doing a reduce_mean. We do a reduce_mean
             # here because it performs better than AveragePooling2D.
-            axes = [1, 2]
-            inputs = tf.reduce_mean(inputs, axes, keepdims=True)
-            inputs = tf.identity(inputs, 'final_reduce_mean')
+            # TODO: major change in logic
+            if(self.reduce_dims_to_array):
+                axes = [1, 2]
+                inputs = tf.reduce_mean(inputs, axes, keepdims=True)
+                inputs = tf.identity(inputs, 'final_reduce_mean')
+                inputs = tf.squeeze(inputs, axes)
 
-            inputs = tf.squeeze(inputs, axes)
             return inputs
