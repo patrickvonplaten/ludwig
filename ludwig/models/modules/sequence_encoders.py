@@ -1624,7 +1624,8 @@ class CNNRNN:
                 block_sizes=None,
                 block_strides=None,
                 reduce_dims_to_array=False,
-                default_dropout=dropout
+                default_dropout=dropout,
+                default_norm=norm
             )
         else:
             self.resnet = None
