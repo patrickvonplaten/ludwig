@@ -67,7 +67,8 @@ def run_experiment(input_features, output_features, **kwargs):
                 'type': 'concat',
                 'fc_size': 14
             },
-            'training': {'epochs': 2}
+            'training': {'epochs': 2,
+                         'dropout_rate': 0.3}
         }
 
     args = {
@@ -267,6 +268,7 @@ def test_experiment_audio_inputs(csv_filename):
     audio_dest_folder = os.path.join(os.getcwd(), 'generated_audio')
     cnnrnn_with_fc_layers_dict = {
         'encoder': 'cnnrnn',
+        'dropout': 'true',
         'preprocessing': {
             'audio_feature': { 
                 'type': 'stft',

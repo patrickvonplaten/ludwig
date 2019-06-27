@@ -1623,7 +1623,8 @@ class CNNRNN:
                 first_pool_stride=None,
                 block_sizes=None,
                 block_strides=None,
-                reduce_dims_to_array=False
+                reduce_dims_to_array=False,
+                default_dropout=dropout
             )
         else:
             self.resnet = None
