@@ -98,7 +98,7 @@ class AudioBaseFeature(BaseFeature):
         """
 
         feature_type = audio_feature_dict['type']
-        audio, sampling_rate_in_hz = soundfile.read(filepath)
+        audio, sampling_rate_in_hz = soundfile.read(filepath, dtype='int16')
         AudioBaseFeature._update(audio_stats, audio, sampling_rate_in_hz)
 
         if(feature_type == 'raw'):

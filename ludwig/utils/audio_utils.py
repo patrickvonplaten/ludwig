@@ -51,6 +51,9 @@ def get_stft_magnitude(raw_data, sampling_rate_in_hz, window_length_in_s, window
     stft_magnitude = np.abs(stft)
     return np.transpose(stft_magnitude)
 
+#def get_log_stft_magnitude(raw_data, sampling_rate_in_hz, window_shift_in_s, window_shift_in_s, num_fft_points, window_type):
+#
+
 def _get_stft(raw_data, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type, data_transformation=None): 
     pre_emphasized_data = _pre_emphasize_data(raw_data)
     stft = _short_time_fourier_transform(pre_emphasized_data, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type, data_transformation)
