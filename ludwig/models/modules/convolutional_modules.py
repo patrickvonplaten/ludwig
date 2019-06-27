@@ -701,7 +701,7 @@ def get_resnet_block_sizes(resnet_size):
 ################################################################################
 # ResNet block definitions.
 ################################################################################
-def resnet_block(inputs, filters, is_training, projection_shortcut, strides, kernel_size=3, regularizer=None, batch_norm_momentum=0.9, batch_norm_epsilon=0.001, dropout=False, dropout_rate=None):
+def resnet_block(inputs, filters, is_training, projection_shortcut, strides, kernel_size=3, regularizer=None, batch_norm_momentum=0.9, batch_norm_epsilon=0.001, dropout=False, dropout_rate=None, activation='relu'):
     """A single block for ResNet v2, without a bottleneck.
     Batch normalization then ReLu then convolution as described by:
       Identity Mappings in Deep Residual Networks
@@ -721,10 +721,13 @@ def resnet_block(inputs, filters, is_training, projection_shortcut, strides, ker
       The output tensor of the block; shape should match inputs.
     """
     shortcut = inputs
-#    inputs = resnet_batch_norm(inputs, is_training,
-#                               batch_norm_momentum=batch_norm_momentum,
-#                               batch_norm_epsilon=batch_norm_epsilon)
-#    inputs = tf.nn.relu(inputs)
+
+    inputs = resnet_batch_norm(inputs, is_training,
+                               batch_norm_momentum=batch_norm_momentum,
+                               batch_norm_epsilon=batch_norm_epsilon)
+
+    if activation:
+        inputs = getattr(tf.nn, activation)(inputs)
 
     # The projection shortcut should come after the first batch norm and ReLU
     # since it performs a 1x1 convolution.
@@ -736,10 +739,12 @@ def resnet_block(inputs, filters, is_training, projection_shortcut, strides, ker
         strides=strides,
         regularizer=regularizer)
 
-#    inputs = resnet_batch_norm(inputs, is_training,
-#                               batch_norm_momentum=batch_norm_momentum,
-#                               batch_norm_epsilon=batch_norm_epsilon)
-    inputs = tf.nn.relu(inputs)
+    inputs = resnet_batch_norm(inputs, is_training,
+                               batch_norm_momentum=batch_norm_momentum,
+                               batch_norm_epsilon=batch_norm_epsilon)
+
+    if activation:
+        inputs = getattr(tf.nn, activation)(inputs)
 
     if dropout and dropout_rate is not None:
         inputs = tf.layers.dropout(inputs, rate=dropout_rate,
@@ -753,7 +758,7 @@ def resnet_block(inputs, filters, is_training, projection_shortcut, strides, ker
         inputs = tf.layers.dropout(inputs, rate=dropout_rate,
                                    training=is_training)
 
-    return tf.nn.relu(inputs + shortcut)
+    return inputs + shortcut
 
 
 def resnet_bottleneck_block(inputs, filters, is_training, projection_shortcut,
@@ -810,6 +815,7 @@ def resnet_bottleneck_block(inputs, filters, is_training, projection_shortcut,
     inputs = resnet_batch_norm(inputs, is_training,
                                batch_norm_momentum=batch_norm_momentum,
                                batch_norm_epsilon=batch_norm_epsilon)
+
     inputs = tf.nn.relu(inputs)
     inputs = conv2d_fixed_padding(
         inputs=inputs, filters=4 * filters, kernel_size=1, strides=1,
@@ -821,7 +827,7 @@ def resnet_bottleneck_block(inputs, filters, is_training, projection_shortcut,
 def resnet_block_layer(inputs, filters, bottleneck, block_fn, blocks, strides,
                        is_training, name, kernel_size=3, regularizer=None,
                        batch_norm_momentum=0.9, batch_norm_epsilon=0.001,
-                        dropout=False, dropout_rate=None
+                        dropout=False, dropout_rate=None, activation='relu'
                        ):
     """Creates one layer of blocks for the ResNet model.
     Args:
@@ -856,7 +862,8 @@ def resnet_block_layer(inputs, filters, bottleneck, block_fn, blocks, strides,
                       batch_norm_momentum=batch_norm_momentum,
                       batch_norm_epsilon=batch_norm_epsilon,
                       dropout=dropout,
-                      dropout_rate=dropout_rate)
+                      dropout_rate=dropout_rate,
+                      activation=activation)
 
     for _ in range(1, blocks):
         inputs = block_fn(inputs, filters, is_training, None, 
@@ -865,7 +872,8 @@ def resnet_block_layer(inputs, filters, bottleneck, block_fn, blocks, strides,
                           batch_norm_momentum=batch_norm_momentum,
                           batch_norm_epsilon=batch_norm_epsilon,
                           dropout=dropout,
-                          dropout_rate=dropout_rate)
+                          dropout_rate=dropout_rate,
+                          activation=activation)
 
     return tf.identity(inputs, name)
 
@@ -876,7 +884,7 @@ class ResNet(object):
     def __init__(self, res_layers, resnet_size, bottleneck, num_filters,
                  kernel_size, conv_stride, first_pool_size, first_pool_stride,
                  block_sizes, block_strides, batch_norm_momentum=0.9,
-                 batch_norm_epsilon=0.001, reduce_dims_to_array=True, default_dropout=False):
+                 batch_norm_epsilon=0.001, reduce_dims_to_array=True, default_dropout=False, default_activation='relu'):
         """Creates a model obtaining an image representation.
 
         Implements ResNet v2:
@@ -925,6 +933,7 @@ class ResNet(object):
         self.res_layers = res_layers
         self.reduce_dims_to_array = reduce_dims_to_array
         self.dropout = default_dropout
+        self.activation = default_activation
 
     def __call__(
             self,
@@ -950,6 +959,9 @@ class ResNet(object):
                     num_blocks = res_layer['num_blocks']
                     strides = res_layer['stride']
                     kernel_size = res_layer['kernel_size']
+                    dropout = res_layer['dropout'] if 'dropout' in res_layer else self.dropout
+                    activation = res_layer['activation'] if 'activation' in res_layer else self.activation
+
                     inputs = resnet_block_layer(
                         inputs=inputs, 
                         filters=num_filters,
@@ -963,8 +975,9 @@ class ResNet(object):
                         regularizer=regularizer,
                         batch_norm_momentum=self.batch_norm_momentum,
                         batch_norm_epsilon=self.batch_norm_epsilon,
-                        dropout=self.dropout,
-                        dropout_rate=dropout_rate
+                        dropout=dropout,
+                        dropout_rate=dropout_rate,
+                        activation=activation
                     )
             else:
                 inputs = conv2d_fixed_padding(

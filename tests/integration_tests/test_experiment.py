@@ -283,7 +283,8 @@ def test_experiment_audio_inputs(csv_filename):
                 'filter_size': (3,7),
                 'stride': (1,1),
                 'pool_size': (1,1),
-                'pool_stride': (1,1)
+                'pool_stride': (1,1),
+                'activation': 'leaky_relu'
             }
         ],
         'res_layers': [
@@ -291,26 +292,30 @@ def test_experiment_audio_inputs(csv_filename):
                 'num_filters': 32,
                 'num_blocks': 1,
                 'kernel_size': (3,5), 
-                'stride': (2,2)
+                'stride': (2,2),
+                'activation': 'leaky_relu'
             },
             {
                 'num_filters': 64,
                 'num_blocks': 1,
                 'num_blocks': 2,
                 'kernel_size': (3,5), 
-                'stride': (2,2)
+                'stride': (2,2),
+                'activation': 'leaky_relu'
             },
             {
                 'num_filters': 128,
                 'num_blocks': 1,
                 'num_blocks': 2,
                 'kernel_size': (3,5), 
-                'stride': (2,2)
+                'stride': (2,2),
+                'activation': 'leaky_relu'
             }
         ],
         'fc_layers': [
             { 
-                'fc_size': 64
+                'fc_size': 64,
+                'activation': None
             },
         ]
     }
