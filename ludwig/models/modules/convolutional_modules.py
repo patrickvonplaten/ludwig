@@ -927,7 +927,7 @@ class ResNet(object):
         self.first_pool_stride = first_pool_stride
         self.block_sizes = block_sizes
         self.block_strides = block_strides
-        self.pre_activation = False
+        self.pre_activation = True
         self.batch_norm_momentum = batch_norm_momentum
         self.batch_norm_epsilon = batch_norm_epsilon
         self.res_layers = res_layers
@@ -951,6 +951,7 @@ class ResNet(object):
           A logits Tensor with shape [<batch_size>, <final_channels>].
         """
         inputs = input_image
+        activation = self.activation
 
         with tf.variable_scope('resnet'):
             if(self.res_layers):
@@ -1012,7 +1013,8 @@ class ResNet(object):
                     inputs, is_training,
                     batch_norm_momentum=self.batch_norm_momentum,
                     batch_norm_epsilon=self.batch_norm_epsilon)
-                inputs = tf.nn.relu(inputs)
+                if activation:
+                    inputs = getattr(tf.nn, activation)(inputs)
 
             # The current top layer has shape
             # `batch_size x pool_size x pool_size x final_size`.

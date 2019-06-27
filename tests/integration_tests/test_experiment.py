@@ -269,6 +269,7 @@ def test_experiment_audio_inputs(csv_filename):
     cnnrnn_with_fc_layers_dict = {
         'encoder': 'cnnrnn',
         'dropout': 'true',
+        'norm': 'batch',
         'preprocessing': {
             'audio_feature': { 
                 'type': 'stft',
