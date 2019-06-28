@@ -51,7 +51,7 @@ class AudioBaseFeature(BaseFeature):
         'missing_value_strategy': BACKFILL,
         'in_memory': True,
         'padding_value': 0,
-        'norm': 'per_file',
+        'norm': 'scale_down',
         'audio_feature': {
            'type': 'raw',
         }
@@ -212,6 +212,9 @@ class AudioBaseFeature(BaseFeature):
                     mean = np.mean(audio_feature, axis = 0)
                     std = np.std(audio_feature, axis = 0)
                     data[feature['name']][i, :, :] = np.divide((audio_feature - mean), std)
+                elif(normalization_type == 'scale_down'):
+                    max_val = np.max(np.abs(audio_feature))
+                    data[feature['name']][i, :, :] = audio_feature / float(max_val)
                 elif(normalization_type == 'global'):
                     raise ValueError('not implemented yet')
                 else: 
