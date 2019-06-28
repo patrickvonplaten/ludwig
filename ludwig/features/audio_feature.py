@@ -243,7 +243,7 @@ class AudioBaseFeature(BaseFeature):
 
         if(feature_type == 'raw'):
             return audio_file_length_limit_in_samp
-        elif(feature_type in ['stft', 'stft_phase', 'group_delay']):
+        elif(feature_type in ['stft', 'log_stft', 'stft_phase', 'group_delay']):
             window_length_in_s = audio_feature_dict['window_length_in_s']
             window_shift_in_s = audio_feature_dict['window_shift_in_s']
             return get_max_length_stft_based(audio_file_length_limit_in_samp, window_length_in_s, window_shift_in_s, sampling_rate_in_hz)
