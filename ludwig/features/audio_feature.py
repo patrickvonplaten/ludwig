@@ -50,7 +50,7 @@ class AudioBaseFeature(BaseFeature):
         'missing_value_strategy': BACKFILL,
         'in_memory': True,
         'padding_value': 0,
-        'norm': None,
+        'norm': 'per_file',
         'audio_feature': {
            'type': 'raw',
         }
