@@ -34,6 +34,7 @@ from ludwig.utils.audio_utils import get_group_delay
 from ludwig.utils.audio_utils import get_phase_stft_magnitude
 from ludwig.utils.audio_utils import get_stft_magnitude
 from ludwig.utils.audio_utils import get_non_symmetric_length
+from ludwig.utils.audio_utils import get_log_stft_magnitude
 from ludwig.utils.misc import set_default_value
 
 
@@ -80,7 +81,7 @@ class AudioBaseFeature(BaseFeature):
         elif(feature_type == 'stft_phase'):
             feature_dim_symmetric = get_length_in_samp(audio_feature_dict['window_length_in_s'], sampling_rate_in_hz)
             feature_dim = 2 * get_non_symmetric_length(feature_dim_symmetric)
-        elif(feature_type in ['stft', 'group_delay']):
+        elif(feature_type in ['stft', 'group_delay','log_stft']):
             feature_dim_symmetric = get_length_in_samp(audio_feature_dict['window_length_in_s'], sampling_rate_in_hz)
             feature_dim = get_non_symmetric_length(feature_dim_symmetric)
         else:
@@ -103,7 +104,7 @@ class AudioBaseFeature(BaseFeature):
 
         if(feature_type == 'raw'):
             audio_feature = np.expand_dims(audio, axis=-1)
-        elif(feature_type in ['stft', 'stft_phase', 'group_delay']):
+        elif(feature_type in ['stft', 'stft_phase', 'group_delay','log_stft']):
             audio_feature = np.transpose(AudioBaseFeature._get_2D_feature(audio, feature_type, audio_feature_dict, sampling_rate_in_hz))
         else:
             raise ValueError('{} is not recognized.'.format(feature_type))
@@ -139,6 +140,8 @@ class AudioBaseFeature(BaseFeature):
             return get_phase_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
         if(feature_type == 'stft'):
             return get_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
+        if(feature_type == 'log_stft'):
+            return get_log_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
         if(feature_type == 'group_delay'):
             return get_group_delay(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
 
