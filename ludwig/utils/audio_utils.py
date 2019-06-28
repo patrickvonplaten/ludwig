@@ -52,7 +52,7 @@ def get_stft_magnitude(raw_data, sampling_rate_in_hz, window_length_in_s, window
     return np.transpose(stft_magnitude)
 
 def get_log_stft_magnitude(raw_data, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type):
-    return np.log(get_stft_magnitude(raw_data, sampling_rate_in_hz, window_shift_in_s, window_shift_in_s, num_fft_points, window_type))
+    return np.log(get_stft_magnitude(raw_data, sampling_rate_in_hz, window_shift_in_s, window_shift_in_s, num_fft_points, window_type) + 1.0e-10)
 
 def _get_stft(raw_data, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type, data_transformation=None): 
     pre_emphasized_data = _pre_emphasize_data(raw_data)
