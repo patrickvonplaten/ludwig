@@ -2150,6 +2150,60 @@ There are no time series decoders at the moment (WIP), so time series cannot be 
 
 As no time series decoders are available at the moment, there are also no time series measures.
 
+
+Audio Features
+--------------
+
+### Audio Features Preprocessing
+
+Ludwig supports reads in audio files using Python's library [SoundFile](https://pypi.org/project/SoundFile/) therefore supporting WAV, FLAC, OGG and MAT files.
+
+-  `in_memory` (default `true`): defines whether image dataset will reside in memory during the training process or will be dynamically fetched from disk (useful for large datasets). In the latter case a training batch of input images will be fetched from disk each training iteration. At the moment only `in_memory` = true is supported.
+- `audio_file_length_limit_in_s`:  (default 5.0) float value that defines the maximum limit of the audio file in seconds. All files longer than this limit are cut off. All files shorter than this limit are padded with `padding_value`
+- `padding_value`: (default 0): float value that is used for padding. 
+- `norm`: (default `null`) the normalization method that can be used for the input data. Supported methods: `null` (data is not normalized), `per_file` (z-norm is applied on a “per file” level)
+- `audio_feature`: (default `{ `type`: `raw`}) dictionary that takes as input the audio feature `type` as well as additional parameters if `type` != `raw`. The following parameters can/should be defined in the dictionary:
+	- `type` (default `raw`): defines the type of audio features to be used. Supported types at the moment are `raw`, `stft`, `stft_phase`, `group_delay`. For more detail, check [Audio Input Features and Encoders](#audio-input-features-and-encoders).
+	- `window_length_in_s`: defines the window length used for the short time Fourier transformation (only needed if `type` != raw).
+	- `window_shift_in_s`: defines the window shift used for the short time Fourier transformation (also called hop_length) (only needed if `type` != raw).
+	- `num_fft_points`: (default window_length_in_s * sample_rate of audio file) defines the number of fft points used for the short time Fourier transformation. If num_fft_points > window_length_in_s * sample_rate, then the signal is zero-padded at the end. Num_fft_points has to be >= window_length_in_s * sample_rate (only needed if `type` != raw).
+	- `window_type`: (default `hamming`): defines the type window the signal is weighted before the short time Fourier transformation. All windows provided by [scipy’s window function](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.get_window.html) can be used (only needed if `type` != raw).
+
+Example of a preprocessing specification:
+
+```yaml
+name: audio_path
+type: audio
+preprocessing:
+  audio_file_length_limit_in_s: 7.5
+  audio_feature:
+    type: stft
+    window_length_in_s: 0.04
+    window_shift_in_s: 0.02
+```
+
+### Audio Input Features and Encoders
+
+Audio files are transformed into one of the following types according to `type` in `audio_feature` in `preprocessing`.
+
+- `raw`: audio file is transformed into a float valued tensor of size `N x L x W` (where `N` is the size of the dataset and `L` corresponds to audio_file_length_limit_in_s * sample_rate and `W` = 1).
+- `stft`: audio is transformed to the `stft` magnitude. Audio file is transformed into a float valued tensor of size `N x L x W` (where `N` is the size of the dataset, `L` corresponds to ceil(audio_file_length_limit_in_s * sample_rate - window_length_in_s * sample_rate + 1/ window_shift_in_s * sample_rate) + 1 and `W` corresponds to audio_file_length_limit_in_s * sample_rate / 2).
+- `stft_phase`: the phase information for each stft bin is appended to the `stft` magnitude so that the audio file is transformed into a float valued tensor of size `N x L x 2W` with `N,L,W` being equal to the ones in `stft`.
+- `group_delay`: audio is transformed to group delay features according to Equation (23) in this [paper](https://www.ias.ac.in/article/fulltext/sadh/036/05/0745-0782). Group_delay features has the same tensor size as `stft`.
+
+The encoders are the same used for the [Sequence Features](#sequence-input-features-and-encoders).
+The only difference is that time series features don't have an embedding layer at the beginning, so the `b x s` placeholders (where `b` is the batch size and `s` is the sequence length) are directly mapped to a `b x s x w` (where `w` is `W` as described above) tensor and then passed to the different sequential encoders.
+
+
+### Audio Output Features and Decoders
+
+There are no audio decoders at the moment (WIP), so audio cannot be used as output features.
+
+### Audio Features Measures
+
+As no audio decoders are available at the moment, there are also no audio measures.
+
+
 Image Features
 --------------
 
@@ -2166,7 +2220,6 @@ If they have different sizes, a `resize_method`, together with a target `width` 
 - `height` (default `null`): image height in pixels, must be set if resizing is required
 - `width` (default `null`): image width in pixels, must be set if resizing is required
 - `num_channels` (default `null`): number of channels in the images. By default, if the value is `null`, the number of channels of the first image of the dataset will be used and if there is an image in the dataset with a different number of channels, an error will be reported. If the value specified is not `null`, images in the dataset will be adapted to the specified size. If the value is `1`, all images with more then one channel will be greyscaled and reduced to one channel (trasparecy will be lost). If the value is `3` all images with 1 channel will be repeated 3 times to obtain 3 channels, while images with 4 channels will lose the transparecy channel. If the value is `4`, all the images with less than 4 channels will have the remaining channels filled with zeros.
-- `scaling` (default `pixel_normalization`): what scaling to perform on images. By default `pixel_normalization` is performed, which consists in dividing each pixel values by 255, but `pixel_standardization` is also available, whic uses [TensorFlow's per image standardization](https://www.tensorflow.org/api_docs/python/tf/image/per_image_standardization).
 
 Depending on the application, it is preferrable not to exceed a size of `256 x 256`, as bigger sizes will, in most cases, not provide much advantage in terms of performance, while they will considerably slow down training and inference and also make both forward and backward passes consume considerably more memory, leading to memory overflows on machines with limited amounts of RAM or on GPUs with limited amounts of VRAM.
 
@@ -2179,7 +2232,6 @@ preprocessing:
   height: 128
   width: 128
   resize_method: interpolate
-  scaling: pixel_normalization
 ```
 
 
