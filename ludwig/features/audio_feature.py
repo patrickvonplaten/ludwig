@@ -130,15 +130,15 @@ class AudioBaseFeature(BaseFeature):
     def _get_2D_feature(audio, feature_type, audio_feature_dict, sampling_rate_in_hz):
         window_length_in_s = audio_feature_dict['window_length_in_s']
         window_shift_in_s = audio_feature_dict['window_shift_in_s']
-        num_fft_points = audio_feature_dict['num_fft_points'] if 'num_fft_points' in audio_feature_dict else get_length_in_samp(window_length_in_s, sampling_rate_in_hz)
+        num_fft_bins = audio_feature_dict['num_fft_bins'] if 'num_fft_bins' in audio_feature_dict else get_length_in_samp(window_length_in_s, sampling_rate_in_hz)
         window_type = audio_feature_dict['window_type'] if 'window_type' in audio_feature_dict else 'hamming'
 
         if feature_type == 'stft_phase': 
-            return get_phase_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
+            return get_phase_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_bins, window_type)
         if feature_type == 'stft':
-            return get_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
+            return get_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_bins, window_type)
         if feature_type == 'group_delay': 
-            return get_group_delay(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
+            return get_group_delay(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_bins, window_type)
 
     @staticmethod
     def add_feature_data(
