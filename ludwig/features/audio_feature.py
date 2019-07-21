@@ -99,7 +99,7 @@ class AudioBaseFeature(BaseFeature):
 
         feature_type = audio_feature_dict['type']
         audio, sampling_rate_in_hz = soundfile.read(filepath)
-        AudioBaseFeature._update(audio_stats, audio, sampling_rate_in_hz)
+        AudioBaseFeature._update_audio_stats(audio_stats, audio, sampling_rate_in_hz)
 
         if feature_type == 'raw': 
             audio_feature = np.expand_dims(audio, axis=-1)
@@ -115,7 +115,7 @@ class AudioBaseFeature(BaseFeature):
         return audio_feature_padded
 
     @staticmethod
-    def _update(audio_stats, audio, sampling_rate_in_hz):
+    def _update_audio_stats(audio_stats, audio, sampling_rate_in_hz):
         audio_length_in_s = audio.shape[-1] / float(sampling_rate_in_hz)
         audio_stats['count'] += 1
         mean = (( audio_stats['count'] - 1) * audio_stats['mean'] + audio_length_in_s ) / float(audio_stats['count'])
