@@ -137,3 +137,6 @@ ENV/
 
 # cTags
 tags
+
+# swp files
+*.swp

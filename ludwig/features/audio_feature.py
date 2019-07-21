@@ -21,7 +21,7 @@ import numpy as np
 import tensorflow as tf
 import soundfile
 
-from ludwig.constants import AUDIO, BACKFILL 
+from ludwig.constants import AUDIO, BACKFILL
 from ludwig.features.base_feature import BaseFeature
 from ludwig.features.sequence_feature import SequenceInputFeature
 
@@ -65,7 +65,7 @@ class AudioBaseFeature(BaseFeature):
         feature_dim = AudioBaseFeature._get_feature_dim(audio_feature_dict, sampling_rate_in_hz)
         audio_file_length_limit_in_s = preprocessing_parameters['audio_file_length_limit_in_s']
         max_length = AudioBaseFeature._get_max_length_feature(audio_feature_dict, sampling_rate_in_hz, audio_file_length_limit_in_s)
-        return { 
+        return {
                 'feature_dim': feature_dim,
                 'sampling_rate_in_hz': sampling_rate_in_hz,
                 'max_length': max_length
@@ -75,12 +75,12 @@ class AudioBaseFeature(BaseFeature):
     def _get_feature_dim(audio_feature_dict, sampling_rate_in_hz):
         feature_type = audio_feature_dict['type']
 
-        if(feature_type == 'raw'):
+        if feature_type == 'raw': 
             feature_dim = 1
-        elif(feature_type == 'stft_phase'):
+        elif feature_type == 'stft_phase': 
             feature_dim_symmetric = get_length_in_samp(audio_feature_dict['window_length_in_s'], sampling_rate_in_hz)
             feature_dim = 2 * get_non_symmetric_length(feature_dim_symmetric)
-        elif(feature_type in ['stft', 'group_delay']):
+        elif feature_type in ['stft', 'group_delay']: 
             feature_dim_symmetric = get_length_in_samp(audio_feature_dict['window_length_in_s'], sampling_rate_in_hz)
             feature_dim = get_non_symmetric_length(feature_dim_symmetric)
         else:
@@ -101,9 +101,9 @@ class AudioBaseFeature(BaseFeature):
         audio, sampling_rate_in_hz = soundfile.read(filepath)
         AudioBaseFeature._update(audio_stats, audio, sampling_rate_in_hz)
 
-        if(feature_type == 'raw'):
+        if feature_type == 'raw': 
             audio_feature = np.expand_dims(audio, axis=-1)
-        elif(feature_type in ['stft', 'stft_phase', 'group_delay']):
+        elif feature_type in ['stft', 'stft_phase', 'group_delay']: 
             audio_feature = np.transpose(AudioBaseFeature._get_2D_feature(audio, feature_type, audio_feature_dict, sampling_rate_in_hz))
         else:
             raise ValueError('{} is not recognized.'.format(feature_type))
@@ -133,11 +133,11 @@ class AudioBaseFeature(BaseFeature):
         num_fft_points = audio_feature_dict['num_fft_points'] if 'num_fft_points' in audio_feature_dict else get_length_in_samp(window_length_in_s, sampling_rate_in_hz)
         window_type = audio_feature_dict['window_type'] if 'window_type' in audio_feature_dict else 'hamming'
 
-        if(feature_type == 'stft_phase'):
+        if feature_type == 'stft_phase': 
             return get_phase_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
-        if(feature_type == 'stft'):
+        if feature_type == 'stft':
             return get_stft_magnitude(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
-        if(feature_type == 'group_delay'):
+        if feature_type == 'group_delay': 
             return get_group_delay(audio, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type)
 
     @staticmethod
@@ -154,9 +154,9 @@ class AudioBaseFeature(BaseFeature):
             preprocessing_parameters['in_memory']
         )
 
-        if(not 'audio_feature' in preprocessing_parameters):
+        if 'audio_feature' not in preprocessing_parameters:
             raise ValueError('audio_feature dictionary has to be present in preprocessing for audio.')
-        if(not 'type' in preprocessing_parameters['audio_feature']):
+        if 'type' not in preprocessing_parameters['audio_feature']:
             raise ValueError('type key has to be present in audio_feature dictionary for audio.')
 
         csv_path = None
@@ -201,11 +201,11 @@ class AudioBaseFeature(BaseFeature):
                 )
                 audio_feature = AudioBaseFeature._read_audio_and_transform_to_feature(filepath, audio_feature_dict, feature_dim, max_length, padding_value, normalization_type, audio_stats)
 
-                if(normalization_type == 'per_file'):
+                if normalization_type == 'per_file':
                     mean = np.mean(audio_feature, axis = 0)
                     std = np.std(audio_feature, axis = 0)
                     data[feature['name']][i, :, :] = np.divide((audio_feature - mean), std)
-                elif(normalization_type == 'global'):
+                elif normalization_type == 'global': 
                     raise ValueError('not implemented yet')
                 else: 
                     data[feature['name']][i, :, :] = audio_feature
@@ -228,13 +228,13 @@ class AudioBaseFeature(BaseFeature):
         feature_type = audio_feature_dict['type']
         audio_file_length_limit_in_samp = audio_file_length_limit_in_s * sampling_rate_in_hz
 
-        if(not audio_file_length_limit_in_samp.is_integer()):
+        if not audio_file_length_limit_in_samp.is_integer():
             raise ValueError('Audio_file_length_limit has to be chosen so that {} (in s) * {} (sampling rate in Hz) is an integer.'.format(audio_file_length_limit_in_s, sampling_rate_in_hz))
         audio_file_length_limit_in_samp = int(audio_file_length_limit_in_samp)
 
-        if(feature_type == 'raw'):
+        if feature_type == 'raw':
             return audio_file_length_limit_in_samp
-        elif(feature_type in ['stft', 'stft_phase', 'group_delay']):
+        elif feature_type in ['stft', 'stft_phase', 'group_delay']: 
             window_length_in_s = audio_feature_dict['window_length_in_s']
             window_shift_in_s = audio_feature_dict['window_shift_in_s']
             return get_max_length_stft_based(audio_file_length_limit_in_samp, window_length_in_s, window_shift_in_s, sampling_rate_in_hz)
@@ -249,9 +249,9 @@ class AudioInputFeature(AudioBaseFeature, SequenceInputFeature):
         self.length = None
         self.embedding_size = None
         self.overwrite_defaults(feature)
-        if(not self.embedding_size):
+        if not self.embedding_size:
             raise ValueError('embedding_size has to be defined - check "update_model_definition_with_metadata()"')
-        if(not self.length):
+        if not self.length:
             raise ValueError('length has to be defined - check "update_model_definition_with_metadata()"')
 
     def _get_input_placeholder(self):
