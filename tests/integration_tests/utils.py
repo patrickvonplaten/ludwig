@@ -145,25 +145,25 @@ def audio_feature(folder, **kwargs):
             'audio_feature': {
                 'type': 'raw',
             },
-            'audio_file_length_limit_in_s': 3.0
+            'audio_file_length_limit_in_s': 0.25
         },
         'encoder': 'stacked_cnn',
         'should_embed': False,
         'conv_layers': [
             {
-                'filter_size': 400,
-                'pool_size': 16,
-                'num_filters': 32,
+                'filter_size': 40,
+                'pool_size': 10,
+                'num_filters': 16,
                 'regularize': 'false'
             },
             { 
-                'filter_size': 40,
-                'pool_size': 10,
-                'num_filters': 64,
+                'filter_size': 20,
+                'pool_size': 5,
+                'num_filters': 32,
                 'regularize': 'false'
             }
         ],
-        'fc_size': 256,
+        'fc_size': 32,
         'audio_dest_folder': folder
     }
     audio_feature.update(kwargs)
