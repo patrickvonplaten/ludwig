@@ -30,17 +30,17 @@ def get_length_in_samp(sampling_rate_in_hz, length_in_s):
 
 
 def get_group_delay(raw_data, sampling_rate_in_hz, window_length_in_s, window_shift_in_s, num_fft_points, window_type):
-    X_stft_transform = _get_stft(raw_data, sampling_rate_in_hz, window_length_in_s,
+    stft_transformed = _get_stft(raw_data, sampling_rate_in_hz, window_length_in_s,
             window_shift_in_s, num_fft_points, window_type=window_type)
-    Y_stft_transform = _get_stft(raw_data, sampling_rate_in_hz, window_length_in_s,
+    ramped_stft_transformed = _get_stft(raw_data, sampling_rate_in_hz, window_length_in_s,
             window_shift_in_s, num_fft_points, window_type=window_type, data_transformation='group_delay')
-    X_stft_transform_real = np.real(X_stft_transform)
-    X_stft_transform_imag = np.imag(X_stft_transform)
-    Y_stft_transform_real = np.real(Y_stft_transform)
-    Y_stft_transform_imag = np.imag(Y_stft_transform)
-    nominator = np.multiply(X_stft_transform_real, Y_stft_transform_real) + np.multiply(X_stft_transform_imag, Y_stft_transform_imag)
-    denominator = np.square(np.abs(X_stft_transform))
-    group_delay = np.divide(nominator, denominator + 1e-10)
+    stft_transformed_real = np.real(stft_transformed)
+    stft_transformed_imag = np.imag(stft_transformed)
+    ramped_stft_transformed_real = np.real(ramped_stft_transformed)
+    ramped_stft_transformed_imag = np.imag(ramped_stft_transformed)
+    numerator = np.multiply(stft_transformed_real, ramped_stft_transformed_real) + np.multiply(stft_transformed_imag, ramped_stft_transformed_imag)
+    denominator = np.square(np.abs(stft_transformed))
+    group_delay = np.divide(numerator, denominator + 1e-10)
     assert not np.isnan(group_delay).any(), 'There are NaN values in group delay'
     return np.transpose(group_delay)
 
